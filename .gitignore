@@ -1,0 +1,8 @@
+
+# Local Android signing artifacts
+android-keys/
+
+node_modules/
+
+node_modules/
+.vercel/
