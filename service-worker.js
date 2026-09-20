@@ -1,4 +1,4 @@
-const CACHE_NAME = 'retzef-pwa-v4-yom-kippur-notice';
+const CACHE_NAME = 'retzef-pwa-v3-contact-form';
 const APP_SHELL = [
   '/',
   '/index.html',
