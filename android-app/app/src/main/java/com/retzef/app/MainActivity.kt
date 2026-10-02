@@ -114,6 +114,7 @@ class MainActivity : AppCompatActivity() {
         @JavascriptInterface fun requestNotifications() { requestNotificationPermission() }
     }
 
+    override fun onPause() { CookieManager.getInstance().flush(); super.onPause() }
     override fun onSaveInstanceState(outState: Bundle) { webView.saveState(outState); super.onSaveInstanceState(outState) }
     override fun onDestroy() { fileCallback?.onReceiveValue(null); webView.destroy(); super.onDestroy() }
 }
