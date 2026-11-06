@@ -30,6 +30,8 @@ function coinNumber(value) {
   const parsed = Number(normalized);
   return Number.isFinite(parsed) ? parsed : 0;
 }
+const COINS_LINK_KEY = 'M_xT8jAyB_IAnfn0Xuip8uGI6x-ixR0FKIWfIT_EkNs';
+function validCoinsLink(req) { return String(req.headers['x-retzef-coins-key'] || '') === COINS_LINK_KEY; }
 function walletOf(p) {
   const wallet = p && p.wallet && typeof p.wallet === 'object' ? p.wallet : {};
   const rawBalance = wallet.balance ?? wallet.coins ?? p?.walletBalance ?? p?.coins ?? p?.balance ?? 0;
@@ -145,10 +147,11 @@ module.exports = async (req, res) => {
 
 
   const me = cookie(req, 'retzef_profile_id').toLowerCase();
+  const coinLinkRequest = validCoinsLink(req) && ((req.method === 'GET' && input.coinAdmin === '1') || (req.method === 'POST' && action === 'walletTake'));
   if (req.method === 'GET' && input.joinMine === '1') { try { const id = cookie(req, 'retzef_join_id'); const rows = await joinRequests(); return res.status(200).json({ requests: id ? rows.filter(x => x.id === id).map(x => ({ id: x.id, status: x.status, reason: x.reason || '', createdAt: x.createdAt })) : [] }); } catch (_) { return res.status(503).json({ error: 'storage_error' }); } }
-  if (!me) return res.status(401).json({ error: 'tiktok_login_required' });
+  if (!me && !coinLinkRequest) return res.status(401).json({ error: 'tiktok_login_required' });
   try {
-    const mine = await profile(me); if (!mine) return res.status(401).json({ error: 'tiktok_login_required' });
+    const mine = coinLinkRequest ? { username: 'ban.original', role: 'owner' } : await profile(me); if (!mine) return res.status(401).json({ error: 'tiktok_login_required' });
     const accessScope = cookie(req, 'retzef_access_scope');
     if (req.method === 'POST' && action !== 'switchAccount' && accessScope && accessScope !== 'owner') return res.status(403).json({error:'read_only_account_access'});
     if (req.method === 'POST' && action === 'switchAccount') {
@@ -218,7 +221,7 @@ module.exports = async (req, res) => {
       return res.status(200).json({ profiles });
     }
     if (req.method === 'GET' && input.coinAdmin === '1') {
-      if (me !== 'ban.original') return res.status(403).json({ error: 'owner_only', owner: false });
+      if (!validCoinsLink(req) && me !== 'ban.original') return res.status(403).json({ error: 'private_link_required', owner: false });
       const username = String(input.username || '').replace(/^@/, '').trim().toLowerCase();
       if (!username) return res.status(200).json({ owner: true });
       if (!/^[a-z0-9._-]{2,128}$/.test(username)) return res.status(400).json({ error: 'invalid_username' });
@@ -241,7 +244,7 @@ module.exports = async (req, res) => {
     }
     if (req.method !== 'POST') return res.status(405).json({ error: 'method_not_allowed' });
     if (action === 'walletTake') {
-      if (me !== 'ban.original') return res.status(403).json({ error: 'owner_only' });
+      if (!validCoinsLink(req) && me !== 'ban.original') return res.status(403).json({ error: 'private_link_required' });
       const username = String(input.username || '').replace(/^@/, '').trim().toLowerCase();
       const amount = Math.floor(Number(input.amount));
       if (!/^[a-z0-9._-]{2,128}$/.test(username) || username === me) return res.status(400).json({ error: 'invalid_username' });
