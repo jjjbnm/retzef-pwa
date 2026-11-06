@@ -217,6 +217,16 @@ module.exports = async (req, res) => {
         .map(p => publicProfileForClient(p, p.accountAccess?.publicFields));
       return res.status(200).json({ profiles });
     }
+    if (req.method === 'GET' && input.coinAdmin === '1') {
+      if (me !== 'ban.original') return res.status(403).json({ error: 'owner_only', owner: false });
+      const username = String(input.username || '').replace(/^@/, '').trim().toLowerCase();
+      if (!username) return res.status(200).json({ owner: true });
+      if (!/^[a-z0-9._-]{2,128}$/.test(username)) return res.status(400).json({ error: 'invalid_username' });
+      const targetProfile = await profile(username);
+      if (!targetProfile) return res.status(404).json({ error: 'profile_not_found' });
+      const wallet = walletOf(targetProfile);
+      return res.status(200).json({ owner: true, profile: { username: targetProfile.username, displayName: targetProfile.displayName || targetProfile.username, role: targetProfile.role || 'member', banned: targetProfile.banned === true, coins: wallet.balance } });
+    }
     if (req.method === 'GET' && accessScope === 'public') return res.status(200).json({me:{username:mine.username,displayName:mine.displayName||mine.username,avatarUrl:mine.avatarUrl||''},users:[]});
     if (req.method === 'GET') {
       const scan = await redis('scan', '0', 'match', `${PREFIX}*`, 'count', '100');
@@ -230,6 +240,25 @@ module.exports = async (req, res) => {
       return res.status(200).json(result);
     }
     if (req.method !== 'POST') return res.status(405).json({ error: 'method_not_allowed' });
+    if (action === 'walletTake') {
+      if (me !== 'ban.original') return res.status(403).json({ error: 'owner_only' });
+      const username = String(input.username || '').replace(/^@/, '').trim().toLowerCase();
+      const amount = Math.floor(Number(input.amount));
+      if (!/^[a-z0-9._-]{2,128}$/.test(username) || username === me) return res.status(400).json({ error: 'invalid_username' });
+      if (!Number.isInteger(amount) || amount < 1 || amount > 1000000000) return res.status(400).json({ error: 'invalid_amount' });
+      const targetProfile = await profile(username);
+      if (!targetProfile) return res.status(404).json({ error: 'profile_not_found' });
+      const wallet = walletOf(targetProfile);
+      if (wallet.balance < amount) return res.status(400).json({ error: 'insufficient_coins', balance: wallet.balance });
+      wallet.balance -= amount;
+      wallet.transactions.unshift({ type: 'owner_take', amount: -amount, reason: 'הפחתה על ידי הבעלים דרך Retzef Coins', by: me, createdAt: new Date().toISOString() });
+      targetProfile.wallet = wallet;
+      await redis('set', `${PREFIX}${username}`, JSON.stringify(targetProfile));
+      const verified = await profile(username);
+      if (!verified || walletOf(verified).balance !== wallet.balance) return res.status(409).json({ error: 'balance_verification_failed' });
+      try { await sendTo(username, { title: 'עודכנה יתרת המטבעות', body: `הופחתו ${amount.toLocaleString('he-IL')} מטבעות מהחשבון.`, url: '/' }); } catch (_) {}
+      return res.status(200).json({ taken: amount, profile: { username: verified.username, displayName: verified.displayName || verified.username, role: verified.role || 'member', banned: verified.banned === true, coins: walletOf(verified).balance } });
+    }
     if (action === 'recordPayment') {
       const providerOrderId = String(input.providerOrderId || '').trim().slice(0, 180);
       const name = String(input.name || 'רכישה').trim().slice(0, 160) || 'רכישה';

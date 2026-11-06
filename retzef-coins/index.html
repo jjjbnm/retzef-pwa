@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Retzef Coins | ניהול מטבעות</title>
+<style>
+:root{color-scheme:dark;--bg:#080b14;--panel:#11182a;--panel2:#17213a;--line:#293653;--text:#f7f9ff;--muted:#aab5cc;--blue:#5b7cfa;--red:#ef5360;--gold:#f4c84d}*{box-sizing:border-box}body{margin:0;min-height:100vh;font-family:Arial,sans-serif;background:radial-gradient(circle at 15% 0,#273978 0,transparent 35%),var(--bg);color:var(--text);padding:24px}main{max-width:720px;margin:0 auto}.top{display:flex;justify-content:space-between;align-items:center;gap:16px;margin:8px 0 26px}.brand{display:flex;align-items:center;gap:12px}.coin{width:46px;height:46px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(135deg,#ffe889,#d99d21);color:#573800;font-size:25px;box-shadow:0 0 30px #e7b83c55}.eyebrow{font-size:12px;color:var(--gold);font-weight:700;letter-spacing:.08em}.title{margin:3px 0;font-size:28px}.card{background:#11182aee;border:1px solid var(--line);border-radius:22px;padding:22px;box-shadow:0 18px 55px #0005;margin-bottom:16px}.notice{padding:13px 15px;border-radius:13px;background:#182744;border:1px solid #3b5ea7;color:#dbe6ff;line-height:1.6}.notice.denied{background:#3a1820;border-color:#8c3443;color:#ffd8dc}.field{display:grid;gap:7px;margin:16px 0}.field label{font-weight:700}.field input{width:100%;border:1px solid var(--line);background:#0a1020;color:var(--text);border-radius:12px;padding:13px;font-size:16px;direction:ltr}.actions{display:flex;gap:10px;flex-wrap:wrap}.btn{border:0;border-radius:12px;padding:12px 17px;font-weight:800;cursor:pointer;color:#fff;background:var(--blue)}.btn.secondary{background:#25314e}.btn.danger{background:var(--red)}.btn:disabled{opacity:.55;cursor:not-allowed}.result{display:none;margin-top:18px;border-top:1px solid var(--line);padding-top:18px}.userline{display:flex;justify-content:space-between;gap:12px;align-items:center}.balance{font-size:30px;color:var(--gold);font-weight:900;margin:12px 0}.meta{color:var(--muted);font-size:14px;line-height:1.7}.message{min-height:24px;color:var(--muted);margin-top:12px;line-height:1.5}.danger-box{margin-top:16px;border:1px solid #71313a;background:#29151b;border-radius:14px;padding:15px}.footer{text-align:center;color:var(--muted);font-size:12px;margin:24px 0}@media(max-width:520px){body{padding:15px}.title{font-size:23px}.card{padding:17px}.top{align-items:flex-start}}
+</style>
+</head>
+<body>
+<main>
+  <header class="top"><div class="brand"><div class="coin">🪙</div><div><div class="eyebrow">RETZEF ADMIN</div><h1 class="title">Retzef Coins</h1></div></div><a class="btn secondary" href="/" style="text-decoration:none">חזרה</a></header>
+  <section class="card">
+    <div id="accessMessage" class="notice">בודק הרשאת בעלים...</div>
+    <div id="adminPanel" hidden>
+      <div class="field"><label for="username">חיפוש לפי username</label><input id="username" autocomplete="off" placeholder="לדוגמה: daniel1234u3"></div>
+      <div class="actions"><button class="btn" id="searchBtn">חיפוש חשבון</button><button class="btn secondary" id="clearBtn">ניקוי</button></div>
+      <div id="message" class="message"></div>
+      <div id="result" class="result">
+        <div class="userline"><div><strong id="displayName"></strong><div class="meta" id="userHandle"></div></div><span>🪙</span></div>
+        <div class="balance" id="balance"></div><div class="meta" id="accountMeta"></div>
+        <div class="danger-box"><strong>הפחתת מטבעות</strong><div class="field"><label for="takeAmount">כמה לקחת?</label><input id="takeAmount" type="number" min="1" step="1" placeholder="לדוגמה: 1000"></div><button class="btn danger" id="takeBtn">לקחת מטבעות</button><div id="takeMessage" class="message"></div></div>
+      </div>
+    </div>
+  </section>
+  <p class="footer">הכלי זמין לבעלים בלבד. כל הפחתה נרשמת בהיסטוריית הארנק.</p>
+</main>
+<script>
+(()=>{
+ const $=id=>document.getElementById(id), access=$('accessMessage'), panel=$('adminPanel'), result=$('result'), msg=$('message'), takeMsg=$('takeMessage'); let selected='';
+ const showError=(el,text)=>{el.textContent=text;};
+ async function check(){try{const r=await fetch('/api/users?coinAdmin=1',{credentials:'include',cache:'no-store'});const d=await r.json();if(!r.ok||!d.owner){access.className='notice denied';access.textContent=d.error==='owner_only'?'אין הרשאה. Retzef Coins זמין לבעלים בלבד.':'צריך להתחבר לחשבון הבעלים.';return;}access.textContent='✅ מחובר כבעלים. אפשר לחפש חשבון ולנהל את המטבעות.';panel.hidden=false;}catch(_){access.className='notice denied';access.textContent='לא ניתן לבדוק הרשאה כרגע.';}}
+ function render(p){selected=p.username;$('displayName').textContent=p.displayName||p.username;$('userHandle').textContent='@'+p.username;$('balance').textContent=Number(p.coins||0).toLocaleString('he-IL')+' מטבעות';$('accountMeta').textContent='סטטוס: '+(p.banned?'חסום':'פעיל')+' · תפקיד: '+(p.role||'חבר/ה');result.style.display='block';$('takeAmount').value='';takeMsg.textContent='';}
+ $('searchBtn').onclick=async()=>{const username=$('username').value.trim().replace(/^@/,'');if(!/^[a-z0-9._-]{2,128}$/i.test(username)){showError(msg,'כתבו username באנגלית, בלי רווחים.');return;}$('searchBtn').disabled=true;msg.textContent='מחפש...';try{const r=await fetch('/api/users?coinAdmin=1&username='+encodeURIComponent(username),{credentials:'include',cache:'no-store'});const d=await r.json();if(!r.ok)throw new Error(d.error||'search_failed');render(d.profile);msg.textContent='';}catch(e){result.style.display='none';showError(msg,e.message==='profile_not_found'?'המשתמש לא נמצא.':'החיפוש נכשל. נסו שוב.');}finally{$('searchBtn').disabled=false;}};
+ $('clearBtn').onclick=()=>{selected='';$('username').value='';result.style.display='none';msg.textContent='';};
+ $('takeBtn').onclick=async()=>{const amount=Number($('takeAmount').value);if(!selected)return; if(!Number.isInteger(amount)||amount<1){takeMsg.textContent='כתבו כמות שלמה גדולה מ־0.';return;}if(!confirm('להפחית '+amount.toLocaleString('he-IL')+' מטבעות מ־@'+selected+'?'))return;$('takeBtn').disabled=true;takeMsg.textContent='מבצע...';try{const r=await fetch('/api/users',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'walletTake',username:selected,amount})});const d=await r.json();if(!r.ok)throw new Error(d.error||'take_failed');render(d.profile);takeMsg.textContent='✅ נלקחו '+Number(d.taken).toLocaleString('he-IL')+' מטבעות ונרשמה פעולה בארנק.';}catch(e){takeMsg.textContent=e.message==='insufficient_coins'?'אין למשתמש מספיק מטבעות.':e.message==='owner_only'?'אין הרשאה.':'הפעולה נכשלה — לא השתנו המטבעות.';}finally{$('takeBtn').disabled=false;}};
+ check();
+})();
+</script>
+</body></html>
